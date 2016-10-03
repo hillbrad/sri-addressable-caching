@@ -141,8 +141,8 @@ and its path.  Either a crawling or user telemetry based cache population strate
 provides the necessary data for this double-keying.
 
 In some circumstances, it may be possible to load from the content addressable
-cache without using both keys, for example, if a resources Content-Security-Policy
-explicitly lists the hash of an external resource as allowed in a header, that could
+cache without using both keys, for example, if a resource's Content-Security-Policy
+header explicitly lists the hash of an external resource as allowed, that could
 be interpreted as an authoritative statement that its origin provenance is irrelevant.
 
 Nothing stops browsers from building such a cache today.  This note encourages

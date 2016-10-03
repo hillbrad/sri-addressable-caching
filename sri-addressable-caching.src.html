@@ -1,0 +1,142 @@
+<pre class='metadata'>
+Title: Subresource Integrity Addressable Caching
+Status: DREAM
+ED: https://hillbrad.github.io/sri-addressable-caching/
+Shortname: sri-addressable-caching
+Level: None
+Editor: Brad Hill, Facebook Inc., hillbrad@gmail.com
+Abstract:
+  This note describes some security considerations around using
+  Subresource Integrity to implement content addressable caching
+  and provides suggestions on how it might be safely done.
+Indent: 2
+Markup Shorthands: css off, markdown on
+Boilerplate: omit conformance, omit feedback-header
+!Participate: <a href="https://github.com/hillbrad/sri-addressable-caching/issues/new">File an issue</a> (<a href="https://github.com/hillbrad/sri-addressable-caching/issues">open issues</a>)
+</pre>
+<pre boilerplate="copyright">&copy;2016 Facebook, Inc.</pre>
+<pre class="link-defaults">
+spec:html; type:element; text:link
+spec:html; type:dfn; text:case-sensitive
+spec:html; type:dfn; text:ascii case-insensitive
+</pre>
+<pre class="anchors">
+spec: SRI; urlPrefix: https://w3c.github.io/webappsec-subresource-integrity/
+  type: dfn
+    text: Subresource Integrity
+spec: CSP3; urlPrefix: https://w3c.github.io/webappsec-csp/
+  type: dfn
+    text: Content Security Policy
+</pre>
+
+Introduction {#intro}
+=====================
+
+A substantial portion of the content downloaded by web user agents today consists
+of JavaScript frameworks.  There are a relatively few frameworks which are
+both extremely popular and large in size.  Many applications include these
+frameworks even if they only use a small portion of the functionality they provide.
+
+In consequence, downloading, parsing, just-in-time compiling these frameworks represents
+a significant amount of the total network, battery and time budget for a modern browser.
+It would be a great improvement if browsers could pre-cache
+these popular libraries a single time and save much of the expense of re-fetching
+them, especially for browsers that do double-keyed caching for privacy.
+
+For example, it would be excellent if a browser could identify opportunities
+when a device is idle, charging, and has unmetered network available to download,
+parse and compile the most popular script files in wide use in order to increase
+performance on-demand later, especially under slow network conditions.
+
+A historical difficulty of accomplishing this has been that resources may
+respond differently in different contexts, update at any time, and the same public
+resource may be hosted in many locations without any way to determine without
+actually fetching it whether it is actually the same content.
+
+The `Subresource Integrity` [[SRI]] ("SRI") specification now allows for
+applications to tag their script dependencies with cryptographic hashes that
+strongly identify the exact content they want.  This naturally raises the
+possibility of using the SRI hash to key into a content addressable cache in
+the browser.
+
+Version 1 of SRI explicitly avoided specifying a means of doing this. This
+document explores why content addressable caching is difficult on the Web
+platform, and how browsers might sidestep these difficulties in a non-normative
+fashion.
+
+Timing Leaks {#cache_timing}
+============================
+
+The first difficulty of implementing cross-origin, content addressable caching on
+the Web platform is that it may leak information about the user's past browsing.
+For example, site "A" could load a script with a given hash, then later when
+the user visits site "B", it could attempt to observe the time it takes to load
+that same resource and infer whether the user had previously been at "A".
+
+Origin Laundering {#origin_laundering}
+======================================
+
+In general, it would seem that the use of a cryptographic hash by the requestor
+to identify content to be loaded should prevent cache poisoning.  However, there
+are some circumstances where the security of a script (or other content which
+might be similarly identified in the future) may depend on the Origin from
+which it is loaded.
+
+`Content-Security-Policy` [[CSP3]] ("CSP") allows resources to specify from which origins
+script may be loaded, as an attack surface reduction.  If 'example.com' specifies
+a Content-Security-Policy of <tt>script-src 'scripts.example.com'</tt> in order to
+only allow known scripts from a source it controls, it would be bad if an attacker
+could inject the following into the resource:
+
+<tt>&lt;script src="https://scripts.example.com/angular.min.js" integrity="sha-256:..." /&gt;</tt>
+
+And by so doing force example.com to load an old version of the Angular framework
+that allows bypassing of CSP, if the real https://scripts.example.com origin didn't
+actually have a copy of that resource.
+
+Similar restrictions might apply for features like Workers or ServiceWorkers which
+are required to be loaded same-origin as a similar security precaution.
+
+Suggestions for a Solution {#solution}
+======================================
+
+Because of these issues, it is difficult to specify SRI-based content addressable
+caching behavior that depends entirely on the interactions between the user agent
+and resources.
+
+Luckily, browsers can do magic behind-the-scenes, and performance improvements, so
+long as they are correct from the perspective of application semantics and security,
+need not be precisely identical across the population of user agents.  More speed
+and less resource consumption is always good.
+
+The simple solution for timing leaks is to simply not base the population of a
+content addressable cache on individual user behavior.  If loading a script is fast
+because it is always fast in a given browser, there is no privacy leak.
+
+Origin laundering is a bit more difficult to address, but it can be handled with the
+same strategy that also informs population of the cache, so long as one is aware of
+the issue in advance.
+
+One possible answer to building SRI addressable caching is for user agents to enable
+it for pieces of content based on large-scale content heuristics, and never
+individual user behavior. Two strategies are possible: crawling and analysis of
+content on the Web at large, and aggregate user browsing behavior based on browser
+telemetry.  Either approach could enable a user agent to determine the most-requested
+content tagged with an SRI hash and populate the browser cache in advance with these
+entries.
+
+Under such a strategy, the only information that might be leaked from timing is the
+last update time of the SRI cache, and possibly the size of the storage alloted to
+this type of cache. (if that is allowed to vary statically or dynamically based on
+the available storage on the device)
+
+Managing origin laundering is a bit more difficult, but only requires the cache to
+be annotated with a list of the most popular sources (including path) for a given
+resource and double-keying the content addressable cache with both the resource hash
+and its path.  Either a crawling or user telemetry based cache population strategy
+provides the necessary data for this double-keying.
+
+Nothing stops browsers from building such a cache today.  This note encourages
+such experiments, while also indicating why a normative specification for doing such
+may never actually emerge.
+

@@ -1377,6 +1377,11 @@ the Web platform is that it may leak information about the user’s past browsin
 For example, site "A" could load a script with a given hash, then later when
 the user visits site "B", it could attempt to observe the time it takes to load
 that same resource and infer whether the user had previously been at "A".</p>
+   <p>In the presence of a user-specific content addressable cache, "B" might also do the following:</p>
+   <tt>&lt;script src="/probe.js?unique_id=..." integrity="sha-256:hash-of-a’s-data" /></tt>
+   <p>If "B" serves a resource with this markup and observes no request to the probe resource is
+made, it can infer with near certainty that the user has previously visited "A" because the
+cache is primed.</p>
    <h2 class="heading settled" data-level="3" id="origin_laundering"><span class="secno">3. </span><span class="content">Origin Laundering</span><a class="self-link" href="#origin_laundering"></a></h2>
    <p>In general, it would seem that the use of a cryptographic hash by the requestor
 to identify content to be loaded should prevent cache poisoning.  However, there

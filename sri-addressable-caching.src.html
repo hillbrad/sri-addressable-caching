@@ -77,6 +77,8 @@ For example, site "A" could load a script with a given hash, then later when
 the user visits site "B", it could attempt to observe the time it takes to load
 that same resource and infer whether the user had previously been at "A".
 
+Deterministic History Leaks {#history_leaks}
+============================================
 In the presence of a user-specific content addressable cache, "B" might also do the following:
 
 <tt>&lt;script src="/probe.js?unique_id=..." integrity="sha-256:hash-of-a's-data" /&gt;</tt>

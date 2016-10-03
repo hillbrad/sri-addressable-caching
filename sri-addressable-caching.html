@@ -1368,6 +1368,9 @@ the browser.</p>
 document explores why content addressable caching is difficult on the Web
 platform, and how browsers might sidestep these difficulties in a non-normative
 fashion.</p>
+   <p>Sharing cached resources across origins based on other signals of content identity
+(such as the "immutable" value for the Cache-Control header) may have similar
+privacy and security concerns and find this document useful.</p>
    <h2 class="heading settled" data-level="2" id="cache_timing"><span class="secno">2. </span><span class="content">Timing Leaks</span><a class="self-link" href="#cache_timing"></a></h2>
    <p>The first difficulty of implementing cross-origin, content addressable caching on
 the Web platform is that it may leak information about the user’s past browsing.
@@ -1425,6 +1428,10 @@ be annotated with a list of the most popular sources (including path) for a give
 resource and double-keying the content addressable cache with both the resource hash
 and its path.  Either a crawling or user telemetry based cache population strategy
 provides the necessary data for this double-keying.</p>
+   <p>In some circumstances, it may be possible to load from the content addressable
+cache without using both keys, for example, if a resources Content-Security-Policy
+explicitly lists the hash of an external resource as allowed in a header, that could
+be interpreted as an authoritative statement that its origin provenance is irrelevant.</p>
    <p>Nothing stops browsers from building such a cache today.  This note encourages
 such experiments, while also indicating why a normative specification for doing such
 may never actually emerge.</p>

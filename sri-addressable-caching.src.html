@@ -10,7 +10,7 @@ Abstract:
   Subresource Integrity to implement content addressable caching
   and provides suggestions on how it might be safely done.
 
-  Nothing stops browsers from building such a cache today.  This note encourages
+  Nothing stops user agents from building such a cache today.  This note encourages
   implementations following proper precautions, while also indicating why
 	a correct and normative specification for such a cache is likely unnecessary
 	and perhaps impossible.
@@ -37,20 +37,18 @@ spec: CSP3; urlPrefix: https://w3c.github.io/webappsec-csp/
 Introduction {#intro}
 =====================
 
-A substantial portion of the content downloaded by web user agents today consists
-of JavaScript frameworks.  There are a relatively few frameworks which are
-both extremely popular and large in size.  Many applications include these
-frameworks even if they only use a small portion of the functionality they provide.
+A small number of large, popular web application frameworks account for a
+substantial portion of the network, battery, and time budgets for a modern
+web user agent (UA). Many applications include these frameworks even if they
+only use a small portion of the functionality they provide. It would be a
+great improvement if UAs could fetch and compile these libraries a
+single time. The benefit would be especially large for UAs that do not
+share cached content across origins / registerable domains for privacy reasons.
 
-In consequence, downloading, parsing, just-in-time compiling these frameworks represents
-a significant amount of the total network, battery and time budget for a modern browser.
-It would be a great improvement if browsers could pre-cache
-these popular libraries a single time and save much of the expense of re-fetching
-them, especially for browsers that do double-keyed caching for privacy.
-
-For example, it would be excellent if a browser could identify opportunities
-when a device is idle, charging, and has unmetered network available to download,
-parse and compile the most popular script files in wide use in order to increase
+If a content addressable cache could be populated prior to individual user
+browsing activity, the UA could even identify opportunities when a device is idle,
+charging, and has unmetered network available, to download,
+parse, and compile script files in wide use in order to increase
 performance on-demand later, especially under slow network conditions.
 
 A historical difficulty of accomplishing this has been that resources may
@@ -62,15 +60,15 @@ The `Subresource Integrity` [[SRI]] ("SRI") specification now allows for
 applications to tag their script dependencies with cryptographic hashes that
 strongly identify the exact content they want.  This naturally raises the
 possibility of using the SRI hash to key into a content addressable cache in
-the browser.
+the UA.
 
 Version 1 of SRI explicitly avoided specifying a means of doing this. This
 document explores why content addressable caching is difficult on the Web
-platform, and how browsers might sidestep these difficulties in a non-normative
+platform, and how UAs might sidestep these difficulties in a non-normative
 fashion.
 
 Sharing cached resources across origins based on other signals of content identity
-(such as the "immutable" value for the Cache-Control header) may have similar
+(such as the "immutable" value for the <tt>Cache-Control</tt> header) may have similar
 privacy and security concerns and find this document useful.
 
 Timing Leaks {#cache_timing}
@@ -82,11 +80,15 @@ For example, site "A" could load a script with a given hash, then later when
 the user visits site "B", it could attempt to observe the time it takes to load
 that same resource and infer whether the user had previously been at "A".
 
+Such timing leaks may exist today in UAs that do not segregate their cache
+based on the requesting origin or registerable domain, but as a content addressasble cache is
+shared by design, this issue requires explicit consideration in this context.
+
 Deterministic History Leaks {#history_leaks}
 ============================================
 In the presence of a user-specific content addressable cache, "B" might also do the following:
 
-<tt>&lt;script src="/probe.js?unique_id=..." integrity="sha-256:hash-of-a's-data" /&gt;</tt>
+<tt>&lt;script src='/probe.js?unique_id=...' integrity='sha-256:hash-of-resource-at-a' /&gt;</tt>
 
 If "B" serves a resource with this markup and observes no request to the probe resource is
 made, it can infer with near certainty that the user has previously visited "A" because the
@@ -98,24 +100,25 @@ Origin Laundering {#origin_laundering}
 
 In general, it would seem that the use of a cryptographic hash by the requestor
 to identify content to be loaded should prevent cache poisoning.  However, there
-are some circumstances where the security of a script (or other content which
-might be similarly identified in the future) may depend on the Origin from
+are some circumstances where the properties of a script (or other content which
+might be similarly identified in the future) depend on the origin from
 which it is loaded.
 
-`Content-Security-Policy` [[CSP3]] ("CSP") allows resources to specify from which origins
-script may be loaded, as an attack surface reduction.  If 'example.com' specifies
-a Content-Security-Policy of <tt>script-src 'scripts.example.com'</tt> in order to
-only allow known scripts from a source it controls, it would be bad if an attacker
-could inject the following into the resource:
+To reduce a resource's attack surface, `Content-Security-Policy` [[CSP3]] ("CSP")
+allows specifying from which origins content may be loaded. If https://example.com
+specifies <tt>Content-Security-Policy: script-src 'scripts.example.com'</tt> for
+its resources in order to only allow known scripts from a source it controls,
+it would be bad if an attacker could inject the following code into a document:
 
-<tt>&lt;script src="https://scripts.example.com/angular.min.js" integrity="sha-256:..." /&gt;</tt>
+<tt>&lt;script src='https://scripts.example.com/angular.min.js' integrity='sha-256:...' /&gt;</tt>
 
-And by so doing force example.com to load an old version of the Angular framework
-that allows bypassing of CSP, if the real https://scripts.example.com origin didn't
-actually have a copy of that resource.
+And by so doing load an old version of the Angular framework from a content
+addressable cache if the server at https://scripts.example.com origin doesn't
+actually provide that resource.
 
 Similar restrictions might apply for features like Workers or ServiceWorkers which
-are required to be loaded same-origin as a similar security precaution.
+are required to be loaded same-origin as a security precaution, or PDFs and other
+plugin documents that assume the origin from which they are loaded.
 
 Suggestions for a Solution {#solution}
 ======================================
@@ -124,14 +127,14 @@ Because of these issues, it is difficult to specify SRI-based content addressabl
 caching behavior that depends entirely on the interactions between the user agent
 and resources.
 
-Luckily, browsers can do magic behind-the-scenes, and performance improvements, so
+Luckily, UAs can do magic behind-the-scenes, and performance improvements, so
 long as they are correct from the perspective of application semantics and security,
 need not be precisely identical across the population of user agents.  More speed
 and less resource consumption is always good.
 
 The simple solution for timing leaks is to simply not base the population of a
 content addressable cache on individual user behavior.  If loading a script is fast
-because it is always fast in a given browser, there is no privacy leak.
+because it is always fast in a given UA, there is no privacy leak.
 
 Origin laundering is a bit more difficult to address, but it can be handled with the
 same strategy that also informs population of the cache, so long as one is aware of
@@ -140,7 +143,7 @@ the issue in advance.
 One possible answer to building SRI addressable caching is for user agents to enable
 it for pieces of content based on large-scale content heuristics, and never
 individual user behavior. A number of strategies are possible: crawling and analysis of
-content on the Web at large and aggregate user browsing behavior based on browser
+content on the Web at large and aggregate user browsing behavior based on UA
 telemetry are two obvious ones.  Either approach could enable a user agent to approximate
 which resources referenced with SRI hashes would provide the most user benefit as
 a member of a content addressable cache.
@@ -176,4 +179,17 @@ cache using only the hash key, for example:
 		resource is not granted any special privileges based on that information</li>
 </ul>
 
-
+<h3>Second-Order Effects</h3>
+Decisions on what to cache are not content-neutral, or if they begin so, they cannot
+remain so.  Any algorithm will create a performance bias towards things included
+in the cache, which may have other, possibly detrimental, effects in the long term.
+It may entrench incumbent, popular frameworks at the expense of innovation, or it
+might discourage early adoption of security fixes if newly-patched libraries are
+slower because they have not been pre-cached yet.  (conversely, a policy of only
+caching the latest few versions of a given library might encourage more rapid
+patching and obsolesence of vulnerable versions) It might also encourage providers
+of popular libraries and frameworks to bundle unrelated features to gain a competitive
+performance advantage, or just to evict less popular competing frameworks from a
+size-limited cache.  Whether such effects would materialize, and their magnitude, is
+impossible to accurately predict, but implementers may wish to take these concerns
+into consideration when deciding whether and how to implement such a caching algorithm.

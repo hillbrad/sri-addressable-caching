@@ -9,6 +9,11 @@ Abstract:
   This note describes some security considerations around using
   Subresource Integrity to implement content addressable caching
   and provides suggestions on how it might be safely done.
+
+  Nothing stops browsers from building such a cache today.  This note encourages
+  implementations following proper precautions, while also indicating why
+	a correct and normative specification for such a cache is likely unnecessary
+	and perhaps impossible.
 Indent: 2
 Markup Shorthands: css off, markdown on
 Boilerplate: omit conformance, omit feedback-header
@@ -134,29 +139,41 @@ the issue in advance.
 
 One possible answer to building SRI addressable caching is for user agents to enable
 it for pieces of content based on large-scale content heuristics, and never
-individual user behavior. Two strategies are possible: crawling and analysis of
-content on the Web at large, and aggregate user browsing behavior based on browser
-telemetry.  Either approach could enable a user agent to determine the most-requested
-content tagged with an SRI hash and populate the browser cache in advance with these
-entries.
+individual user behavior. A number of strategies are possible: crawling and analysis of
+content on the Web at large and aggregate user browsing behavior based on browser
+telemetry are two obvious ones.  Either approach could enable a user agent to approximate
+which resources referenced with SRI hashes would provide the most user benefit as
+a member of a content addressable cache.
 
-Under such a strategy, the only information that might be leaked from timing is the
-last update time of the SRI cache, and possibly the size of the storage alloted to
-this type of cache. (if that is allowed to vary statically or dynamically based on
-the available storage on the device)
+A user agent might also simply "pick winners" manually to avoid the security and
+privacy traps, but it is likely a more sophisticated strategy will produce better
+results.  The exact nature of such a strategy is inherently non-normative and which
+strategy will achieve the best results may be unstable over time and for different
+user populations.
+
+If the content addressable cache is pre-populated identically for large user populations,
+the only information that might be leaked via side-channels is the last update time of
+the SRI cache, and possibly the size of the storage alloted to this type of cache
+(if that is allowed to vary statically or dynamically based on the available
+storage on the device) by examining whether resources at the time and space edges of the
+cache are primed.
 
 Managing origin laundering is a bit more difficult, but only requires the cache to
 be annotated with a list of the most popular sources (including path) for a given
-resource and double-keying the content addressable cache with both the resource hash
+resource, and double-keying the content addressable cache with both the resource hash
 and its path.  Either a crawling or user telemetry based cache population strategy
 provides the necessary data for this double-keying.
 
-In some circumstances, it may be possible to load from the content addressable
-cache without using both keys, for example, if a resource's Content-Security-Policy
-header explicitly lists the hash of an external resource as allowed, that could
-be interpreted as an authoritative statement that its origin provenance is irrelevant.
+In many circumstances, it may be possible to safely load from the content addressable
+cache using only the hash key, for example:
 
-Nothing stops browsers from building such a cache today.  This note encourages
-such experiments, while also indicating why a normative specification for doing such
-may never actually emerge.
+<ul>
+	<li>If no Content-Security-Policy rules apply to the resource fetch</li>
+	<li>If a resource's Content-Security-Policy header explicitly lists the hash 
+		of an external resource as allowed, that could be interpreted as an authoritative
+		statement that its origin provenance is irrelevant</li>
+	<li>If the origin provenance of a resource is otherwise irrelevant because the
+		resource is not granted any special privileges based on that information</li>
+</ul>
+
 

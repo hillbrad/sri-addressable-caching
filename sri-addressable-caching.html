@@ -1303,7 +1303,7 @@ Possible extra rowspan handling
   <div class="head">
    <p data-fill-with="logo"></p>
    <h1 class="p-name no-ref" id="title">Subresource Integrity Addressable Caching</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="subtitle"><span class="content">A Collection of Interesting Ideas, <time class="dt-updated" datetime="2016-10-04">4 October 2016</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="subtitle"><span class="content">A Collection of Interesting Ideas, <time class="dt-updated" datetime="2016-10-15">15 October 2016</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -1320,11 +1320,12 @@ Possible extra rowspan handling
   </div>
   <h2 class="no-num no-toc no-ref heading settled" id="abstract"><span class="content">Abstract</span></h2>
   <div class="p-summary" data-fill-with="abstract">
-   <p>This note describes some security considerations around using
+   <p>This note describes some security and privacy risks associated with
 
-Subresource Integrity to implement content addressable caching
-and provides suggestions on how it might be safely done.</p>
-   <p>Nothing stops user agents from building such a cache today.  This note encourages
+content addressable caching in Web user agents, particularly those
+that may arise from the use of Subresource Integrity metadata
+to identify cache-eligible resources.</p>
+   <p>Nothing stops user agents from building such a cache. This note encourages
 
 implementations following proper precautions, while also indicating why
 a correct and normative specification for such a cache is likely unnecessary
@@ -1352,22 +1353,22 @@ and perhaps impossible.</p>
   </nav>
   <main>
    <h2 class="heading settled" data-level="1" id="intro"><span class="secno">1. </span><span class="content">Introduction</span><a class="self-link" href="#intro"></a></h2>
-   <p>A small number of large, popular web application frameworks account for a
-substantial portion of the network, battery, and time budgets for a modern
-web user agent (UA). Many applications include these frameworks even if they
-only use a small portion of the functionality they provide. It would be a
-great improvement if UAs could fetch and compile these libraries a
-single time. The benefit would be especially large for UAs that do not
-share cached content across origins / registerable domains for privacy reasons.</p>
-   <p>If a content addressable cache could be populated prior to individual user
-browsing activity, the UA could even identify opportunities when a device is idle,
+   <p>A small number of popular JavaScript frameworks and libraries account for a
+substantial portion of the network, battery, and time budgets of users of
+the contemporary Web. Many applications include these libraries even if they
+only use a small portion of the functionality they provide. Large improvements 
+seem possible if Web User Agents ("UAs") could fetch and compile these libraries a
+single time. The benefit would be especially large for UAs that do not currently
+share cached content across origins. (typically to protect user privacy)</p>
+   <p>If a content addressable cache could be populated prior to user
+browsing activity, the UA could identify opportunities when a device is idle,
 charging, and has unmetered network available, to download,
 parse, and compile script files in wide use in order to increase
-performance on-demand later, especially under slow network conditions.</p>
+performance later, especially under slow network conditions.</p>
    <p>A historical difficulty of accomplishing this has been that resources may
 respond differently in different contexts, update at any time, and the same public
-resource may be hosted in many locations without any way to determine without
-actually fetching it whether it is actually the same content.</p>
+resource may be hosted in many locations without any way to determine (without
+actually fetching it) whether it is actually the same content.</p>
    <p>The <code>Subresource Integrity</code> <a data-link-type="biblio" href="#biblio-sri">[SRI]</a> ("SRI") specification now allows for
 applications to tag their script dependencies with cryptographic hashes that
 strongly identify the exact content they want.  This naturally raises the
@@ -1375,8 +1376,8 @@ possibility of using the SRI hash to key into a content addressable cache in
 the UA.</p>
    <p>Version 1 of SRI explicitly avoided specifying a means of doing this. This
 document explores why content addressable caching is difficult on the Web
-platform, and how UAs might sidestep these difficulties in a non-normative
-fashion.</p>
+platform, the sometimes subtle security and privacy issues it raises, 
+and how UAs might sidestep these difficulties in a non-normative fashion.</p>
    <p>
     Sharing cached resources across origins based on other signals of content identity
 (such as the "immutable" value for the 
@@ -1395,46 +1396,61 @@ based on the requesting origin or registerable domain, but as a content addressa
 shared by design, this issue requires explicit consideration in this context.</p>
    <h2 class="heading settled" data-level="3" id="history_leaks"><span class="secno">3. </span><span class="content">Deterministic History Leaks</span><a class="self-link" href="#history_leaks"></a></h2>
     In the presence of a user-specific content addressable cache, "B" might also do the following: 
-   <tt>&lt;script src='/probe.js?unique_id=...' integrity='sha-256:hash-of-resource-at-a' /></tt>
+   <tt>&lt;script src='/probe.js?unique_id=1IAMTRACKINGY0U' integrity='sha-256:hash-of-resource-at-a' /></tt>
    <p>If "B" serves a resource with this markup and observes no request to the probe resource is
 made, it can infer with near certainty that the user has previously visited "A" because the
 cache is primed.</p>
    <h2 class="heading settled" data-level="4" id="origin_laundering"><span class="secno">4. </span><span class="content">Origin Laundering</span><a class="self-link" href="#origin_laundering"></a></h2>
-   <p>In general, it would seem that the use of a cryptographic hash by the requestor
+   <p>In general, it would seem that the use of a cryptographic hash
 to identify content to be loaded should prevent cache poisoning.  However, there
 are some circumstances where the properties of a script (or other content which
 might be similarly identified in the future) depend on the origin from
 which it is loaded.</p>
-   <p>
-    To reduce a resource’s attack surface, <code>Content-Security-Policy</code> <a data-link-type="biblio" href="#biblio-csp3">[CSP3]</a> ("CSP")
-allows specifying from which origins content may be loaded. If https://example.com
-specifies 
-    <tt>Content-Security-Policy: script-src 'scripts.example.com'</tt>
-     for
+   <p>To reduce attack surface, <code>Content-Security-Policy</code> <a data-link-type="biblio" href="#biblio-csp3">[CSP3]</a> ("CSP")
+allows a resource to specify to the UA from which origins it should load content
+like scripts.  If https://example.com specifies</p>
+   <tt>Content-Security-Policy: script-src 'scripts.example.com'</tt>
+    for
 its resources in order to only allow known scripts from a source it controls,
-it would be bad if an attacker could inject the following code into a document:
+it would be bad if an attacker could inject the following code into a document: 
+   <tt>&lt;script src='https://scripts.example.com/angular.min.js' integrity='sha-256:deadbeef1234badcafe...' /></tt>
+   <p>And by so doing get the UA to load an old version of the Angular framework from a content
+addressable cache if the server at https://scripts.example.com origin wouldn’t
+actually serve that resource.</p>
+   <p>Origin Laundering of this sort might also allow bypassing restrictions on the
+loading of Workers or ServiceWorkers, which must be at the same-origin as the
+resource loading them.</p>
+   <p>
+    Origin Laundering could create immediate Universal Cross-Site Scripting (UXSS) if
+it was applied to 
+    <tt>&lt;plugin></tt>
+    , 
+    <tt>&lt;object></tt>
+    , or similar
+subresource types that create a plugin document, as PDFs and other plugin document
+types often use variant access control policies which allow these document types
+to assume the origin in their own URL, rather than the origin of the document to 
+which they are a subresource.
    </p>
-   <tt>&lt;script src='https://scripts.example.com/angular.min.js' integrity='sha-256:...' /></tt>
-   <p>And by so doing load an old version of the Angular framework from a content
-addressable cache if the server at https://scripts.example.com origin doesn’t
-actually provide that resource.</p>
-   <p>Similar restrictions might apply for features like Workers or ServiceWorkers which
-are required to be loaded same-origin as a security precaution, or PDFs and other
-plugin documents that assume the origin from which they are loaded.</p>
+   <p>
+    A similar UXSS risk would exist if top-level documents
+(e.g. HTML in an 
+    <tt>&lt;iframe></tt>
+    ) were eligible for loading from a content
+aware cache in a manner subject to Origin Laundering.
+   </p>
    <h2 class="heading settled" data-level="5" id="solution"><span class="secno">5. </span><span class="content">Suggestions for a Solution</span><a class="self-link" href="#solution"></a></h2>
    <p>Because of these issues, it is difficult to specify SRI-based content addressable
 caching behavior that depends entirely on the interactions between the user agent
 and resources.</p>
-   <p>Luckily, UAs can do magic behind-the-scenes, and performance improvements, so
-long as they are correct from the perspective of application semantics and security,
-need not be precisely identical across the population of user agents.  More speed
-and less resource consumption is always good.</p>
-   <p>The simple solution for timing leaks is to simply not base the population of a
+   <p>The difficulty of normatively specifying a neutral algorithm does not mean that
+we must forgo the potential improvements of such a cache.  So long as they do not
+violate an application’s semantics (including security), UAs have wide latitude to
+make performance improvements.  The performance benefits of a cache need not be
+uniform, deterministic or even entirely predictable by applications.</p>
+   <p>A simple solution for timing and history leaks is to not base the population of a
 content addressable cache on individual user behavior.  If loading a script is fast
 because it is always fast in a given UA, there is no privacy leak.</p>
-   <p>Origin laundering is a bit more difficult to address, but it can be handled with the
-same strategy that also informs population of the cache, so long as one is aware of
-the issue in advance.</p>
    <p>One possible answer to building SRI addressable caching is for user agents to enable
 it for pieces of content based on large-scale content heuristics, and never
 individual user behavior. A number of strategies are possible: crawling and analysis of
@@ -1449,22 +1465,22 @@ strategy will achieve the best results may be unstable over time and for differe
 user populations.</p>
    <p>If the content addressable cache is pre-populated identically for large user populations,
 the only information that might be leaked via side-channels is the last update time of
-the SRI cache, and possibly the size of the storage alloted to this type of cache
+the SRI cache, and possibly the size of the storage allotted to this type of cache
 (if that is allowed to vary statically or dynamically based on the available
 storage on the device) by examining whether resources at the time and space edges of the
 cache are primed.</p>
-   <p>Managing origin laundering is a bit more difficult, but only requires the cache to
-be annotated with a list of the most popular sources (including path) for a given
-resource, and double-keying the content addressable cache with both the resource hash
-and its path.  Either a crawling or user telemetry based cache population strategy
+   <p>Managing origin laundering requires the cache to be annotated with a list of
+URLs observed to actually host a given resource, and double-keying the content
+addressable cache with both the resource hash and its location.
+Either a crawling or user telemetry based cache population strategy
 provides the necessary data for this double-keying.</p>
    <p>In many circumstances, it may be possible to safely load from the content addressable
 cache using only the hash key, for example:</p>
    <ul>
     <li>If no Content-Security-Policy rules apply to the resource fetch
     <li>If a resource’s Content-Security-Policy header explicitly lists the hash 
-		of an external resource as allowed, that could be interpreted as an authoritative
-		statement that its origin provenance is irrelevant
+		of an external resource as allowed, the UA could interpret that as an authoritative
+		statement that the resource’s origin provenance is irrelevant
     <li>If the origin provenance of a resource is otherwise irrelevant because the
 		resource is not granted any special privileges based on that information
    </ul>
@@ -1474,14 +1490,15 @@ remain so.  Any algorithm will create a performance bias towards things included
 in the cache, which may have other, possibly detrimental, effects in the long term.
 It may entrench incumbent, popular frameworks at the expense of innovation, or it
 might discourage early adoption of security fixes if newly-patched libraries are
-slower because they have not been pre-cached yet.  (conversely, a policy of only
+slower because they have not been pre-cached yet.  Conversely, a policy of only
 caching the latest few versions of a given library might encourage more rapid
-patching and obsolesence of vulnerable versions) It might also encourage providers
-of popular libraries and frameworks to bundle unrelated features to gain a competitive
-performance advantage, or just to evict less popular competing frameworks from a
+patching and obsolesence of vulnerable versions. 
+   <p>A privileged place in the cache might encourage providers of popular libraries
+and frameworks to bundle unrelated features to gain a competitive
+advantage, or just to evict less popular competing frameworks from a
 size-limited cache.  Whether such effects would materialize, and their magnitude, is
 impossible to accurately predict, but implementers may wish to take these concerns
-into consideration when deciding whether and how to implement such a caching algorithm. 
+into consideration when deciding whether and how to implement such a caching algorithm.</p>
   </main>
 <script>
 (function() {
